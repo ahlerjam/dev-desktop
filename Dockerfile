@@ -3,7 +3,7 @@
 #   test     -> ghcr.io/ahlerjam/dev-desktop-test : blanke Kiste, nur Google Chrome + Chromium (aus webtop) + Optik
 #   desktop  -> ghcr.io/ahlerjam/dev-desktop      : wie test, dazu Claude Desktop, Claude Code und Entwicklerwerkzeuge
 # Programme liegen bewusst im Image und nicht im Home: ein Home auf Netzspeicher kann zwischen arm64 und x86 wandern.
-# Was zur Laufzeit per apt installiert wird, ist nach dem naechsten Neustart weg.
+# Was zur Laufzeit per apt installiert wird, ist nach dem nächsten Neustart weg.
 
 # ---------------------------------------------------------------------------------------------
 FROM lscr.io/linuxserver/webtop:debian-xfce AS test
