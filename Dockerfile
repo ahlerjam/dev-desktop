@@ -82,10 +82,12 @@ RUN \
     claude-desktop \
     claude-code \
     gnome-keyring \
+    libayatana-appindicator3-1 \
     libsecret-1-0 \
     libsecret-tools \
-    seahorse && \
-  echo "**** Entwicklerwerkzeuge ****" && \
+    seahorse \
+    socat && \
+  echo "**** Entwicklerwerkzeuge (Node.js samt npm bringt das Basis-Image mit; das Debian-Paket npm kollidiert damit) ****" && \
   apt-get install -y --no-install-recommends \
     build-essential \
     fd-find \
@@ -95,8 +97,6 @@ RUN \
     jq \
     less \
     nano \
-    nodejs \
-    npm \
     openssh-client \
     python3 \
     python3-pip \
@@ -105,6 +105,8 @@ RUN \
     tmux \
     vim \
     wget && \
+  echo "**** Kontrolle ****" && \
+  node --version && npm --version && claude --version && dpkg -s claude-desktop | grep '^Version' && \
   echo "**** aufräumen ****" && \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
