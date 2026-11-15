@@ -87,7 +87,7 @@ RUN \
     libsecret-tools \
     seahorse \
     socat && \
-  echo "**** Entwicklerwerkzeuge (Node.js samt npm bringt das Basis-Image mit; das Debian-Paket npm kollidiert damit) ****" && \
+  echo "**** Entwicklerwerkzeuge (nodejs kommt aus der Paketquelle des Basis-Images und enthält npm; das Debian-Paket npm kollidiert damit) ****" && \
   apt-get install -y --no-install-recommends \
     build-essential \
     fd-find \
@@ -97,6 +97,7 @@ RUN \
     jq \
     less \
     nano \
+    nodejs \
     openssh-client \
     python3 \
     python3-pip \
