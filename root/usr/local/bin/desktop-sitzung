@@ -1,0 +1,11 @@
+#!/bin/bash
+# Läuft innerhalb der D-Bus-Sitzung. Entsperrt den GNOME-Keyring mit leerem Passwort, damit Claude Desktop
+# (und Chrome) Anmeldungen speichern können, ohne bei jedem Start nach einem Keyring-Passwort zu fragen.
+# Der Keyring liegt im Home (~/.local/share/keyrings) und ist damit nicht zusätzlich verschlüsselt:
+# Schutz ist der Zugang zum Desktop (Cloudflare Access) und zum Speicher.
+# Im Ziel „test“ (dev-test) gibt es keinen Keyring; dort passiert hier nichts.
+if command -v gnome-keyring-daemon > /dev/null; then
+  eval "$(printf '' | gnome-keyring-daemon --unlock --components=secrets,pkcs11 2>/dev/null)"
+  export GNOME_KEYRING_CONTROL
+fi
+exec /usr/bin/xfce4-session

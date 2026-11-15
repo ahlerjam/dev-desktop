@@ -1,0 +1,14 @@
+#!/bin/bash
+# Google Chrome wie wrapped-chromium aus webtop: mit Sandbox, wenn der Pod ohne seccomp-Filter läuft
+# (seccompProfile Unconfined + User-Namespaces auf dem Knoten), sonst ohne.
+BIN=/usr/bin/google-chrome-stable
+
+if ! pgrep -f /opt/google/chrome/chrome > /dev/null; then
+  rm -f "$HOME"/.config/google-chrome/Singleton*
+fi
+
+if grep -q 'Seccomp:.0' /proc/1/status; then
+  exec ${BIN} "$@"
+else
+  exec ${BIN} --no-sandbox --test-type "$@"
+fi

@@ -1,0 +1,69 @@
+name: Images bauen
+
+# Baut beide Multi-Arch-Images (amd64 + arm64) aus einem Dockerfile und legt sie nach GHCR:
+#   Ziel test    -> ghcr.io/<owner>/dev-desktop-test  (nur Chrome + Chromium)
+#   Ziel desktop -> ghcr.io/<owner>/dev-desktop       (dazu Claude Desktop, Claude Code, Werkzeuge)
+# Die Digests stehen in der Zusammenfassung des Laufs.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["README.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: test
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          push: true
+          provenance: false
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/dev-desktop-test:latest
+            ghcr.io/${{ github.repository_owner }}/dev-desktop-test:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # baut auf den zwischengespeicherten Schichten von "test" auf
+      - id: desktop
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: desktop
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/dev-desktop:latest
+            ghcr.io/${{ github.repository_owner }}/dev-desktop:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Digests ausgeben
+        run: |
+          {
+            echo "ghcr.io/${{ github.repository_owner }}/dev-desktop-test@${{ steps.test.outputs.digest }}"
+            echo "ghcr.io/${{ github.repository_owner }}/dev-desktop@${{ steps.desktop.outputs.digest }}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
