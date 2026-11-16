@@ -49,7 +49,8 @@ mkdir -p "$ORDNER"
 {
   echo "# Per apt nachinstallierte Pakete. Wird automatisch gepflegt und bei jedem Start des Desktops wieder installiert."
   echo "# Protokoll des letzten Starts: pakete.log im selben Ordner."
-  [ -n "$neu" ] && echo "$neu"
-} > "$LISTE.neu" && mv "$LISTE.neu" "$LISTE"
+  if [ -n "$neu" ]; then echo "$neu"; fi   # als if: eine leere Liste muss auch geschrieben werden (letztes Paket entfernt)
+} > "$LISTE.neu"
+mv "$LISTE.neu" "$LISTE"
 chown 1000:1000 "$ORDNER" "$LISTE" 2> /dev/null
 exit 0
