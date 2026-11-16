@@ -110,7 +110,8 @@ RUN \
   test -s /usr/share/backgrounds/dev-desktop/hintergrund.png && \
   echo "**** Paketstand des Images festhalten (pakete-merken vergleicht dagegen) ****" && \
   install -d /usr/share/dev-desktop && LC_ALL=C apt-mark showmanual | LC_ALL=C sort -u > /usr/share/dev-desktop/basis-pakete.txt && \
-  test -s /usr/share/dev-desktop/basis-pakete.txt && command -v setsid flock pgrep comm
+  test -s /usr/share/dev-desktop/basis-pakete.txt && command -v setsid flock pgrep comm && \
+  test -s /usr/share/dev-desktop/CLAUDE.md
 
 EXPOSE 3000
 VOLUME /config
@@ -152,5 +153,6 @@ RUN \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 RUN ln -sf desktop.png /usr/share/backgrounds/dev-desktop/hintergrund.png && test -s /usr/share/backgrounds/dev-desktop/hintergrund.png && \
+  rm -f /usr/share/dev-desktop/CLAUDE.md && \
   LC_ALL=C apt-mark showmanual | LC_ALL=C sort -u > /usr/share/dev-desktop/basis-pakete.txt && \
   grep -qx wireguard-tools /usr/share/dev-desktop/basis-pakete.txt

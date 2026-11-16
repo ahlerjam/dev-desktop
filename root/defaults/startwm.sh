@@ -16,6 +16,13 @@ if [ ! -d "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml ]; then
   cp /defaults/xfce/* "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml/
 fi
 
+# Kurze Hinweise für Claude (nur dev-test: das Ziel „desktop“ entfernt die Vorlage, dort pflegt der Nutzer seine eigene
+# Datei). Nur in ein Home ohne CLAUDE.md – also beim ersten Start und nach jedem Zurücksetzen.
+if [ -f /usr/share/dev-desktop/CLAUDE.md ] && [ ! -e "${HOME}"/.claude/CLAUDE.md ]; then
+  mkdir -p "${HOME}"/.claude
+  cp /usr/share/dev-desktop/CLAUDE.md "${HOME}"/.claude/CLAUDE.md
+fi
+
 # Starter auf den Schreibtisch, einmalig
 if [ ! -e "${HOME}"/.config/dev-desktop-eingerichtet ]; then
   mkdir -p "${HOME}"/Desktop "${HOME}"/Projekte
