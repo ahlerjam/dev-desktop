@@ -1,0 +1,106 @@
+#!/bin/bash
+# WireGuard-Tunnel des Dev-Desktops starten: jede Datei ~/wireguard/<name>.conf wird ein Tunnel <name>, alle
+# gleichzeitig (Wunsch Nutzer 16.11.: mehrere Netze dauerhaft erreichbar). Läuft beim Sitzungsstart (startwm.sh) und
+# von Hand nach dem Ablegen einer neuen Datei:   wireguard-start      Zustand:   sudo wg      Protokoll: ~/wireguard/letzter-start.log
+#
+# Voraussetzungen: wireguard-tools im Image (nur Ziel „desktop“) und die Capability NET_ADMIN am Container.
+# Die Konfigurationen enthalten private Schlüssel: sie liegen nur im Home, nie im Image oder in einem Repo.
+#
+# Schutz des Desktops – ein Tunnel wird NICHT gestartet, wenn seine AllowedIPs
+#   - allen Verkehr umleiten (0.0.0.0/0, ::/0, 0.0.0.0/1 + 128.0.0.0/1): dann liefen auch die Antworten an Traefik in
+#     den Tunnel und das Bild im Browser bräche ab,
+#   - das Lab-Netz 192.168.50.x oder ein 10.x-Netz enthalten (Knoten, Pod- und Dienstnetze des Clusters).
+# In dem Fall AllowedIPs in der Datei auf das Netz der Gegenstelle kürzen (z. B. 192.168.178.0/24).
+# DNS-Zeilen werden übergangen (im Container gibt es kein resolvconf; Namen der Gegenstelle also per IP ansprechen),
+# IPv6-Einträge ebenfalls, wenn der Pod kein IPv6 hat.
+
+command -v wg-quick > /dev/null || exit 0
+if [ "$(id -u)" != "0" ]; then
+  exec sudo -n "$0" "$@"
+fi
+
+QUELLE=/config/wireguard
+[ -d "$QUELLE" ] || exit 0
+shopt -s nullglob
+dateien=("$QUELLE"/*.conf)
+[ "${#dateien[@]}" -gt 0 ] || exit 0
+
+PROTOKOLL="$QUELLE/letzter-start.log"
+exec > "$PROTOKOLL" 2>&1
+chown 1000:1000 "$PROTOKOLL" 2> /dev/null
+echo "WireGuard-Start $(date '+%d.%m.%Y %H:%M:%S')"
+
+ipv6=0
+if [ -e /proc/net/if_inet6 ] && [ "$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2> /dev/null)" = "0" ]; then
+  ipv6=1
+fi
+
+install -d -m 700 /etc/wireguard
+fehler=0
+for datei in "${dateien[@]}"; do
+  name="$(basename "$datei" .conf)"
+  echo
+  echo "== $name =="
+  if ! [[ "$name" =~ ^[A-Za-z0-9_-]{1,15}$ ]]; then
+    echo "übersprungen: Dateiname darf nur Buchstaben, Ziffern, - und _ enthalten und höchstens 15 Zeichen lang sein"
+    fehler=1
+    continue
+  fi
+  ziel="/etc/wireguard/$name.conf"
+  if ip link show "$name" > /dev/null 2>&1; then
+    wg-quick down "$name" || ip link delete "$name"
+  fi
+
+  # DNS-Zeilen weg, IPv6-Einträge weg (ohne IPv6 im Pod), Zeilenenden von Windows weg
+  ( umask 077
+    awk -v v6="$ipv6" '
+      {
+        z = $0; sub(/\r$/, "", z)
+        k = tolower(z); sub(/^[ \t]+/, "", k)
+        if (k ~ /^dns[ \t]*=/) next
+        if (k ~ /^(address|allowedips)[ \t]*=/) {
+          i = index(z, "="); schluessel = substr(z, 1, i - 1); wert = substr(z, i + 1)
+          n = split(wert, a, ","); neu = ""
+          for (j = 1; j <= n; j++) {
+            e = a[j]; gsub(/[ \t]/, "", e)
+            if (e == "") continue
+            if (!v6 && e ~ /:/) continue
+            neu = neu (neu == "" ? "" : ", ") e
+          }
+          if (neu == "") next
+          print schluessel "= " neu
+          next
+        }
+        print z
+      }' "$datei" > "$ziel" )
+
+  verboten="$(awk -F= '
+      { k = tolower($1); gsub(/[ \t]/, "", k) }
+      k == "allowedips" {
+        n = split($2, a, ",")
+        for (j = 1; j <= n; j++) {
+          e = a[j]; gsub(/[ \t]/, "", e)
+          if (e ~ /^0\.0\.0\.0\/[01]$/ || e ~ /^128\.0\.0\.0\/1$/ || e ~ /^::\/[01]$/ || e ~ /^8000::\/1$/ ||
+              e ~ /^192\.168\.50\./ || e ~ /^10\./) print e
+        }
+      }' "$ziel" | paste -sd' ' -)"
+  if [ -n "$verboten" ]; then
+    echo "nicht gestartet: AllowedIPs enthält $verboten"
+    echo "Das würde den Desktop selbst abschneiden (aller Verkehr, Lab-Netz 192.168.50.x oder Cluster-Netze 10.x)."
+    echo "AllowedIPs in $datei auf das Netz der Gegenstelle kürzen, dann wireguard-start erneut aufrufen."
+    rm -f "$ziel"
+    fehler=1
+    continue
+  fi
+
+  if wg-quick up "$name"; then
+    echo "läuft: $(ip -brief address show "$name" 2> /dev/null)"
+  else
+    echo "Start fehlgeschlagen (siehe Meldungen oben)"
+    fehler=1
+  fi
+done
+
+echo
+wg show all endpoints 2> /dev/null | sed 's/^/Gegenstelle: /'
+exit "$fehler"

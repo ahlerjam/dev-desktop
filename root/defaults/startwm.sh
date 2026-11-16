@@ -61,4 +61,8 @@ fi
 # den es nicht mehr gibt ("Profil wird bereits verwendet").
 rm -f "${HOME}"/.config/google-chrome/Singleton* "${HOME}"/.config/chromium/Singleton*
 
+# WireGuard-Tunnel aus ~/wireguard/*.conf starten (nur Dev-Desktop: braucht wireguard-tools und NET_ADMIN; sonst tut
+# das Skript nichts). Im Hintergrund, damit ein hängender Tunnel den Desktop nicht aufhält.
+/usr/local/bin/wireguard-start > /dev/null 2>&1 &
+
 exec dbus-launch --exit-with-session /usr/local/bin/desktop-sitzung > /dev/null 2>&1

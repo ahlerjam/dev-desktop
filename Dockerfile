@@ -136,8 +136,13 @@ RUN \
     tmux \
     vim \
     wget && \
+  echo "**** WireGuard (Tunnel aus ~/wireguard/*.conf, Start über /usr/local/bin/wireguard-start; braucht NET_ADMIN am Container) ****" && \
+  apt-get install -y --no-install-recommends \
+    iproute2 \
+    wireguard-tools && \
   echo "**** Kontrolle ****" && \
   node --version && npm --version && git --version && gh --version && \
+  wg --version && command -v wg-quick ip sudo && \
   echo "**** aufräumen ****" && \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
