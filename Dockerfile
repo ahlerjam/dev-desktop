@@ -3,7 +3,8 @@
 #   test     -> ghcr.io/ahlerjam/dev-desktop-test : Google Chrome + Chromium (aus webtop), Claude Desktop, Claude Code, Optik
 #   desktop  -> ghcr.io/ahlerjam/dev-desktop      : wie test, dazu Entwicklerwerkzeuge (git, gh, Node.js, Python, Build)
 # Programme liegen bewusst im Image und nicht im Home: ein Home auf Netzspeicher kann zwischen arm64 und x86 wandern.
-# Was zur Laufzeit per apt installiert wird, ist nach dem nächsten Neustart weg.
+# Was zur Laufzeit per apt installiert wird, merkt sich pakete-merken im Home; pakete-nachinstallieren spielt es bei
+# jedem Start wieder ein. Alles andere außerhalb des Homes ist nach dem nächsten Neustart weg.
 
 # ---------------------------------------------------------------------------------------------
 FROM lscr.io/linuxserver/webtop:debian-xfce AS test
@@ -106,7 +107,10 @@ RUN \
   [ "$(getent passwd 1000 | cut -d: -f1)" = jam ] && [ "$(getent group 1000 | cut -d: -f1)" = jam ] && \
   id jam && id abc && \
   ln -sf test.png /usr/share/backgrounds/dev-desktop/hintergrund.png && \
-  test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
+  test -s /usr/share/backgrounds/dev-desktop/hintergrund.png && \
+  echo "**** Paketstand des Images festhalten (pakete-merken vergleicht dagegen) ****" && \
+  install -d /usr/share/dev-desktop && LC_ALL=C apt-mark showmanual | LC_ALL=C sort -u > /usr/share/dev-desktop/basis-pakete.txt && \
+  test -s /usr/share/dev-desktop/basis-pakete.txt && command -v setsid flock pgrep comm
 
 EXPOSE 3000
 VOLUME /config
@@ -147,4 +151,6 @@ RUN \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
-RUN ln -sf desktop.png /usr/share/backgrounds/dev-desktop/hintergrund.png && test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
+RUN ln -sf desktop.png /usr/share/backgrounds/dev-desktop/hintergrund.png && test -s /usr/share/backgrounds/dev-desktop/hintergrund.png && \
+  LC_ALL=C apt-mark showmanual | LC_ALL=C sort -u > /usr/share/dev-desktop/basis-pakete.txt && \
+  grep -qx wireguard-tools /usr/share/dev-desktop/basis-pakete.txt

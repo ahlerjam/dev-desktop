@@ -1,0 +1,54 @@
+#!/bin/bash
+# Installiert beim Start des Desktops die gemerkten Pakete wieder (~/.config/dev-desktop/pakete.txt, gepflegt von
+# /usr/local/bin/pakete-merken). Läuft einmal je Container-Start im Hintergrund (startwm.sh); der Desktop ist sofort
+# benutzbar, die Programme sind je nach Menge nach ein bis ein paar Minuten wieder da.
+# Protokoll: ~/.config/dev-desktop/pakete.log
+
+if [ "$(id -u)" != "0" ]; then
+  exec sudo -n "$0" "$@"
+fi
+export LC_ALL=C DEBIAN_FRONTEND=noninteractive
+
+ORDNER=/config/.config/dev-desktop
+LISTE="$ORDNER/pakete.txt"
+PROTOKOLL="$ORDNER/pakete.log"
+FERTIG=/run/dev-desktop-pakete-fertig
+OFFEN=/run/dev-desktop-pakete-offen
+
+touch /run/dev-desktop-laufzeit   # ab jetzt darf pakete-merken die Liste pflegen
+[ -e "$FERTIG" ] && exit 0
+
+# nur gültige Paketnamen (optional mit :architektur), alles andere in der Datei wird übergangen
+pakete="$(sed -e '/^#/d' -e '/^$/d' "$LISTE" 2> /dev/null | grep -E '^[a-z0-9][a-z0-9+.-]*(:[a-z0-9]+)?$' | sort -u)"
+if [ -z "$pakete" ]; then
+  touch "$FERTIG"
+  exit 0
+fi
+
+mkdir -p "$ORDNER"
+exec > "$PROTOKOLL" 2>&1
+chown 1000:1000 "$ORDNER" "$PROTOKOLL" 2> /dev/null
+echo "Nachinstallieren $(date '+%d.%m.%Y %H:%M:%S'): $(echo "$pakete" | wc -l) Pakete"
+
+APT="apt-get -o DPkg::Lock::Timeout=300"
+$APT update || echo "Warnung: apt-get update fehlgeschlagen, versuche es trotzdem"
+
+# shellcheck disable=SC2086
+if ! $APT install -y $pakete; then
+  echo
+  echo "Gesamtlauf fehlgeschlagen, installiere einzeln"
+  for p in $pakete; do
+    if ! $APT install -y "$p"; then
+      echo "$p" >> "$OFFEN"
+    fi
+  done
+fi
+
+touch "$FERTIG"
+/usr/local/bin/pakete-merken
+
+echo
+if [ -s "$OFFEN" ]; then
+  echo "Nicht installierbar (bleiben vorgemerkt): $(sort -u "$OFFEN" | paste -sd' ' -)"
+fi
+echo "Fertig $(date '+%d.%m.%Y %H:%M:%S')"

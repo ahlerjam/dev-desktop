@@ -1,0 +1,55 @@
+#!/bin/bash
+# Merkt sich, welche Pakete seit dem Image dazugekommen sind (Wunsch Nutzer 16.11.: was per apt installiert wird,
+# soll Neustarts überleben). Der Container startet jedes Mal frisch aus dem Image; nur das Home bleibt. Deshalb steht
+# die Liste im Home (~/.config/dev-desktop/pakete.txt) und /usr/local/bin/pakete-nachinstallieren spielt sie bei
+# jedem Start wieder ein.
+#
+# Aufruf: automatisch nach jedem apt/dpkg-Lauf (/etc/apt/apt.conf.d/90dev-desktop-merken, mit --warten) und am Ende
+# von pakete-nachinstallieren. „Dazugekommen“ = von Hand installiert (apt-mark showmanual) und nicht in der Liste des
+# Images (/usr/share/dev-desktop/basis-pakete.txt). Mit apt remove verschwindet ein Paket auch wieder aus der Liste.
+#
+# Grenzen: nur Pakete aus den Paketquellen des Images. Eigene Paketquellen unter /etc/apt, von Hand kopierte Programme
+# (/opt, /usr/local) und sonstige Änderungen am System bleiben nicht.
+
+if [ "$(id -u)" != "0" ]; then
+  exec sudo -n "$0" "$@"
+fi
+export LC_ALL=C
+
+BASIS=/usr/share/dev-desktop/basis-pakete.txt
+ORDNER=/config/.config/dev-desktop
+LISTE="$ORDNER/pakete.txt"
+LAUFZEIT=/run/dev-desktop-laufzeit        # gibt es nur im laufenden Desktop, nie beim Bau des Images
+FERTIG=/run/dev-desktop-pakete-fertig     # Nachinstallieren nach dem Start ist durch
+OFFEN=/run/dev-desktop-pakete-offen       # Pakete aus der Liste, die sich nicht nachinstallieren ließen
+
+[ -e "$LAUFZEIT" ] && [ -s "$BASIS" ] || exit 0
+
+if [ "$1" = "--warten" ]; then
+  # apt schreibt erst nach dem dpkg-Lauf, welche Pakete nur als Abhängigkeit kamen – so lange warten
+  for _ in $(seq 1 120); do
+    pgrep -x 'apt|apt-get|aptitude|dpkg' > /dev/null || break
+    sleep 1
+  done
+fi
+
+exec 9> /run/dev-desktop-pakete.lock
+flock 9
+
+aktuell="$(comm -23 <(apt-mark showmanual | sort -u) <(sort -u "$BASIS"))"
+if [ -e "$FERTIG" ]; then
+  # Normalbetrieb: die Liste ist genau der jetzige Stand; was sich nicht nachinstallieren ließ, bleibt vorgemerkt
+  neu="$( { echo "$aktuell"; cat "$OFFEN" 2> /dev/null; } | sed -e '/^#/d' -e '/^$/d' | sort -u)"
+else
+  # kurz nach dem Start ist noch nicht alles wieder da: nichts aus der Liste verlieren
+  neu="$( { echo "$aktuell"; cat "$LISTE" 2> /dev/null; } | sed -e '/^#/d' -e '/^$/d' | sort -u)"
+fi
+
+mkdir -p "$ORDNER"
+{
+  echo "# Per apt nachinstallierte Pakete. Wird automatisch gepflegt und bei jedem Start des Desktops wieder installiert."
+  echo "# Protokoll des letzten Starts: pakete.log im selben Ordner."
+  [ -n "$neu" ] && echo "$neu"
+} > "$LISTE.neu" && mv "$LISTE.neu" "$LISTE"
+chown 1000:1000 "$ORDNER" "$LISTE" 2> /dev/null
+exit 0

@@ -65,4 +65,8 @@ rm -f "${HOME}"/.config/google-chrome/Singleton* "${HOME}"/.config/chromium/Sing
 # das Skript nichts). Im Hintergrund, damit ein hängender Tunnel den Desktop nicht aufhält.
 /usr/local/bin/wireguard-start > /dev/null 2>&1 &
 
+# Per apt nachinstallierte Pakete wieder einspielen (Liste im Home, siehe /usr/local/bin/pakete-merken). Im Hintergrund:
+# der Desktop ist sofort da, die Programme folgen nach ein bis ein paar Minuten.
+/usr/local/bin/pakete-nachinstallieren > /dev/null 2>&1 &
+
 exec dbus-launch --exit-with-session /usr/local/bin/desktop-sitzung > /dev/null 2>&1

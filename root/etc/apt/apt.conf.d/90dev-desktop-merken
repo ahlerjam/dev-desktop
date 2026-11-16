@@ -1,0 +1,3 @@
+// Nach jedem apt/dpkg-Lauf die Liste der nachinstallierten Pakete im Home auffrischen (siehe /usr/local/bin/pakete-merken).
+// Losgelöst im Hintergrund: das Skript wartet, bis apt fertig ist. Beim Bau des Images tut es nichts.
+DPkg::Post-Invoke { "setsid -f /usr/local/bin/pakete-merken --warten > /dev/null 2>&1 || true"; };

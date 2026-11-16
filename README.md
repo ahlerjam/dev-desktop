@@ -12,6 +12,9 @@ Multi-Arch (amd64 + arm64). Ein Dockerfile, zwei Ziele:
 - Bau: GitHub Actions (`.github/workflows/build.yml`) bei jedem Push auf `main` oder von Hand; die Digests stehen in der
   Zusammenfassung des Laufs.
 - Neue Programme: ins `Dockerfile`, pushen, Digest dort eintragen, wo das Image läuft.
+- Zur Laufzeit per `apt install` nachinstallierte Pakete merkt sich der Desktop im Home (`~/.config/dev-desktop/pakete.txt`)
+  und installiert sie bei jedem Start im Hintergrund wieder (Protokoll `pakete.log` daneben). Eigene Paketquellen und
+  sonstige Änderungen außerhalb des Homes bleiben nicht.
 - Der Desktop hat keine eigene Anmeldung und passwortloses sudo: nur hinter einem Zugangsschutz betreiben.
 - Die Browser nutzen ihre Sandbox nur, wenn der Container ohne seccomp-Filter läuft und der Host User-Namespaces erlaubt;
   sonst starten die Wrapper sie mit `--no-sandbox`.
