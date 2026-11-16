@@ -1,8 +1,8 @@
 name: Images bauen
 
 # Baut beide Multi-Arch-Images (amd64 + arm64) aus einem Dockerfile und legt sie nach GHCR:
-#   Ziel test    -> ghcr.io/<owner>/dev-desktop-test  (nur Chrome + Chromium)
-#   Ziel desktop -> ghcr.io/<owner>/dev-desktop       (dazu Claude Desktop, Claude Code, Werkzeuge)
+#   Ziel test    -> ghcr.io/<owner>/dev-desktop-test  (Chrome, Chromium, Claude Desktop, Claude Code)
+#   Ziel desktop -> ghcr.io/<owner>/dev-desktop       (dazu Entwicklerwerkzeuge)
 # Die Digests stehen in der Zusammenfassung des Laufs.
 on:
   push:

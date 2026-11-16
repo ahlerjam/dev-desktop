@@ -1,7 +1,7 @@
 # Zwei Linux-Desktops im Browser: Debian 13 + XFCE (linuxserver webtop / Selkies), Multi-Arch (amd64 + arm64).
 # Zwei Ziele aus einem Dockerfile, gebaut per GitHub Actions (.github/workflows/build.yml):
-#   test     -> ghcr.io/ahlerjam/dev-desktop-test : blanke Kiste, nur Google Chrome + Chromium (aus webtop) + Optik
-#   desktop  -> ghcr.io/ahlerjam/dev-desktop      : wie test, dazu Claude Desktop, Claude Code und Entwicklerwerkzeuge
+#   test     -> ghcr.io/ahlerjam/dev-desktop-test : Google Chrome + Chromium (aus webtop), Claude Desktop, Claude Code, Optik
+#   desktop  -> ghcr.io/ahlerjam/dev-desktop      : wie test, dazu Entwicklerwerkzeuge (git, gh, Node.js, Python, Build)
 # Programme liegen bewusst im Image und nicht im Home: ein Home auf Netzspeicher kann zwischen arm64 und x86 wandern.
 # Was zur Laufzeit per apt installiert wird, ist nach dem nächsten Neustart weg.
 
@@ -48,34 +48,7 @@ RUN \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
-# Eigene Dateien: Sitzungsstart (Starter, Sperrdateien, Keyring falls vorhanden), Leiste, Chrome-Wrapper, Hintergrundbilder
-COPY /root /
-
-# Benutzer heißt „jam“ statt „abc“. Das Basis-Image verdrahtet „abc“ fest in allen Startskripten (s6-setuidgid abc,
-# usermod … abc), deshalb bleibt „abc“ bestehen und „jam“ ist ein zweiter Name für dieselbe UID 1000 (PUID/PGID im
-# Deployment). Er steht in passwd/group ganz oben (das Basis-Image belegt UID/GID 1000 schon anderweitig), damit die Auflösung UID → Name „jam“ liefert (Terminal, whoami, sudo).
-# Gleiche Gruppen wie „abc“, damit sudo ohne Passwort weiter geht. Hintergrundbild: blau = Dev-Desktop, orange = dev-test.
-RUN \
-  echo "UID/GID 1000 im Basis-Image: $(getent passwd 1000) / $(getent group 1000)" && \
-  groupadd -o -g 1000 jam && \
-  useradd -o -u 1000 -g 1000 -M -d /config -s /bin/bash -c jam -G "$(id -Gn abc | tr ' ' '\n' | grep -vx abc | paste -sd,)" jam && \
-  for f in /etc/passwd /etc/group; do \
-    zeile="$(grep '^jam:' "$f")" && \
-    sed -i -e '/^jam:/d' "$f" && \
-    sed -i -e "1i ${zeile}" "$f"; \
-  done && \
-  [ "$(getent passwd 1000 | cut -d: -f1)" = jam ] && [ "$(getent group 1000 | cut -d: -f1)" = jam ] && \
-  id jam && id abc && \
-  ln -sf test.png /usr/share/backgrounds/dev-desktop/hintergrund.png && \
-  test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
-
-EXPOSE 3000
-VOLUME /config
-
-# ---------------------------------------------------------------------------------------------
-FROM test AS desktop
-
-ARG DEBIAN_FRONTEND=noninteractive
+# Claude Desktop und Claude Code gehören seit 16.11. zu beiden Zielen (Wunsch Nutzer): auch dev-test hat sie vorinstalliert.
 # Fingerabdruck des Anthropic-Signaturschlüssels (Doku code.claude.com: desktop-linux und setup)
 ARG ANTHROPIC_FPR=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
 
@@ -105,6 +78,45 @@ RUN \
     libsecret-tools \
     seahorse \
     socat && \
+  echo "**** Kontrolle ****" && \
+  claude --version && dpkg -s claude-desktop | grep '^Version' && \
+  echo "**** aufräumen ****" && \
+  apt-get autoclean && \
+  rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
+
+# Claude Code aktualisiert sich nicht selbst (apt-Paket); neue Versionen kommen mit einem neuen Image (Workflow erneut laufen lassen).
+ENV DISABLE_AUTOUPDATER=1
+
+# Eigene Dateien: Sitzungsstart (Starter, Sperrdateien, Keyring falls vorhanden), Leiste, Chrome-Wrapper, Hintergrundbilder
+COPY /root /
+
+# Benutzer heißt „jam“ statt „abc“. Das Basis-Image verdrahtet „abc“ fest in allen Startskripten (s6-setuidgid abc,
+# usermod … abc), deshalb bleibt „abc“ bestehen und „jam“ ist ein zweiter Name für dieselbe UID 1000 (PUID/PGID im
+# Deployment). Er steht in passwd/group ganz oben (das Basis-Image belegt UID/GID 1000 schon anderweitig), damit die Auflösung UID → Name „jam“ liefert (Terminal, whoami, sudo).
+# Gleiche Gruppen wie „abc“, damit sudo ohne Passwort weiter geht. Hintergrundbild: blau = Dev-Desktop, orange = dev-test.
+RUN \
+  echo "UID/GID 1000 im Basis-Image: $(getent passwd 1000) / $(getent group 1000)" && \
+  groupadd -o -g 1000 jam && \
+  useradd -o -u 1000 -g 1000 -M -d /config -s /bin/bash -c jam -G "$(id -Gn abc | tr ' ' '\n' | grep -vx abc | paste -sd,)" jam && \
+  for f in /etc/passwd /etc/group; do \
+    zeile="$(grep '^jam:' "$f")" && \
+    sed -i -e '/^jam:/d' "$f" && \
+    sed -i -e "1i ${zeile}" "$f"; \
+  done && \
+  [ "$(getent passwd 1000 | cut -d: -f1)" = jam ] && [ "$(getent group 1000 | cut -d: -f1)" = jam ] && \
+  id jam && id abc && \
+  ln -sf test.png /usr/share/backgrounds/dev-desktop/hintergrund.png && \
+  test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
+
+EXPOSE 3000
+VOLUME /config
+
+# ---------------------------------------------------------------------------------------------
+FROM test AS desktop
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN \
+  apt-get update && \
   echo "**** Entwicklerwerkzeuge (nodejs kommt aus der Paketquelle des Basis-Images und enthält npm; das Debian-Paket npm kollidiert damit) ****" && \
   apt-get install -y --no-install-recommends \
     build-essential \
@@ -125,12 +137,9 @@ RUN \
     vim \
     wget && \
   echo "**** Kontrolle ****" && \
-  node --version && npm --version && claude --version && dpkg -s claude-desktop | grep '^Version' && \
+  node --version && npm --version && git --version && gh --version && \
   echo "**** aufräumen ****" && \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 RUN ln -sf desktop.png /usr/share/backgrounds/dev-desktop/hintergrund.png && test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
-
-# Claude Code aktualisiert sich nicht selbst (apt-Paket); neue Versionen kommen mit einem neuen Image (Workflow erneut laufen lassen).
-ENV DISABLE_AUTOUPDATER=1

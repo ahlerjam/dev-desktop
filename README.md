@@ -6,8 +6,8 @@ Multi-Arch (amd64 + arm64). Ein Dockerfile, zwei Ziele:
 
 | Ziel | Image | Inhalt |
 |---|---|---|
-| `test` | `ghcr.io/ahlerjam/dev-desktop-test` | blanke Kiste: Google Chrome, Chromium, Optik (Arc-Dark, Papirus, Inter) |
-| `desktop` | `ghcr.io/ahlerjam/dev-desktop` | wie `test`, dazu Claude Desktop, Claude Code, git/gh, Node.js, Python, Build-Werkzeuge |
+| `test` | `ghcr.io/ahlerjam/dev-desktop-test` | Google Chrome, Chromium, Claude Desktop, Claude Code, Optik (Arc-Dark, Papirus, Inter) |
+| `desktop` | `ghcr.io/ahlerjam/dev-desktop` | wie `test`, dazu git/gh, Node.js, Python, Build-Werkzeuge |
 
 - Bau: GitHub Actions (`.github/workflows/build.yml`) bei jedem Push auf `main` oder von Hand; die Digests stehen in der
   Zusammenfassung des Laufs.
