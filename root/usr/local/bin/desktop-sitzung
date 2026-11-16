@@ -8,4 +8,29 @@ if command -v gnome-keyring-daemon > /dev/null; then
   eval "$(printf '' | gnome-keyring-daemon --unlock --components=secrets,pkcs11 2>/dev/null)"
   export GNOME_KEYRING_CONTROL
 fi
+
+# Hintergrundbild einmalig setzen (danach gehört die Wahl dem Nutzer). Die Eigenschaften heißen je nach Bildschirm-
+# namen anders, deshalb: alle vorhandenen last-image-Einträge umstellen und den erwarteten Namen („screen“) anlegen.
+(
+  marke="${HOME}/.config/dev-desktop-hintergrund-1"
+  bild=/usr/share/backgrounds/dev-desktop/hintergrund.png
+  [ -e "$marke" ] && exit 0
+  for _ in $(seq 1 60); do
+    pgrep -u "$(id -u)" -x xfdesktop > /dev/null && break
+    sleep 1
+  done
+  sleep 3
+  ausgaben="$(xrandr 2>/dev/null | awk '/ connected/{print $1}')"
+  {
+    xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$'
+    for a in screen $ausgaben; do
+      for w in 0 1; do echo "/backdrop/screen0/monitor${a}/workspace${w}/last-image"; done
+    done
+  } | sort -u | while read -r eigenschaft; do
+    xfconf-query -c xfce4-desktop -p "$eigenschaft" --create -t string -s "$bild"
+    xfconf-query -c xfce4-desktop -p "${eigenschaft%last-image}image-style" --create -t int -s 5   # 5 = gezoomt
+  done
+  touch "$marke"
+) > /dev/null 2>&1 &
+
 exec /usr/bin/xfce4-session

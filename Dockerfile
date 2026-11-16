@@ -48,8 +48,25 @@ RUN \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
-# Eigene Dateien: Sitzungsstart (Starter, Sperrdateien, Keyring falls vorhanden), Leiste, Chrome-Wrapper
+# Eigene Dateien: Sitzungsstart (Starter, Sperrdateien, Keyring falls vorhanden), Leiste, Chrome-Wrapper, Hintergrundbilder
 COPY /root /
+
+# Benutzer heißt „jam“ statt „abc“. Das Basis-Image verdrahtet „abc“ fest in allen Startskripten (s6-setuidgid abc,
+# usermod … abc), deshalb bleibt „abc“ bestehen und „jam“ ist ein zweiter Name für dieselbe UID 1000 (PUID/PGID im
+# Deployment). Er steht in passwd/group VOR „abc“, damit die Auflösung UID → Name „jam“ liefert (Terminal, whoami, sudo).
+# Gleiche Gruppen wie „abc“, damit sudo ohne Passwort weiter geht. Hintergrundbild: blau = Dev-Desktop, orange = dev-test.
+RUN \
+  groupadd -g 1000 jam && \
+  useradd -u 1000 -g 1000 -M -d /config -s /bin/bash -c jam -G "$(id -Gn abc | tr ' ' '\n' | grep -vx abc | paste -sd,)" jam && \
+  for f in /etc/passwd /etc/group; do \
+    zeile="$(grep '^jam:' "$f")" && \
+    sed -i -e '/^jam:/d' "$f" && \
+    sed -i -e "/^abc:/i ${zeile}" "$f"; \
+  done && \
+  [ "$(getent passwd 1000 | cut -d: -f1)" = jam ] && [ "$(getent group 1000 | cut -d: -f1)" = jam ] && \
+  id jam && id abc && \
+  ln -sf test.png /usr/share/backgrounds/dev-desktop/hintergrund.png && \
+  test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
 
 EXPOSE 3000
 VOLUME /config
@@ -111,6 +128,8 @@ RUN \
   echo "**** aufräumen ****" && \
   apt-get autoclean && \
   rm -rf /config/.cache /var/lib/apt/lists/* /var/tmp/* /tmp/*
+
+RUN ln -sf desktop.png /usr/share/backgrounds/dev-desktop/hintergrund.png && test -s /usr/share/backgrounds/dev-desktop/hintergrund.png
 
 # Claude Code aktualisiert sich nicht selbst (apt-Paket); neue Versionen kommen mit einem neuen Image (Workflow erneut laufen lassen).
 ENV DISABLE_AUTOUPDATER=1

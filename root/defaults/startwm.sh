@@ -1,6 +1,9 @@
 #!/bin/bash
 # Sitzungsstart des Dev-Desktops (ersetzt /defaults/startwm.sh aus webtop:debian-xfce).
 
+# Der Prozess läuft mit UID 1000; die heißt im Image „jam“ (zweiter Name neben „abc“, siehe Dockerfile).
+export USER=jam LOGNAME=jam
+
 # Voreinstellungen nur beim allerersten Start ins Home kopieren (wie im Original)
 if [ ! -d "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml ]; then
   mkdir -p "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml
