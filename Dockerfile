@@ -53,15 +53,16 @@ COPY /root /
 
 # Benutzer heißt „jam“ statt „abc“. Das Basis-Image verdrahtet „abc“ fest in allen Startskripten (s6-setuidgid abc,
 # usermod … abc), deshalb bleibt „abc“ bestehen und „jam“ ist ein zweiter Name für dieselbe UID 1000 (PUID/PGID im
-# Deployment). Er steht in passwd/group VOR „abc“, damit die Auflösung UID → Name „jam“ liefert (Terminal, whoami, sudo).
+# Deployment). Er steht in passwd/group ganz oben (das Basis-Image belegt UID/GID 1000 schon anderweitig), damit die Auflösung UID → Name „jam“ liefert (Terminal, whoami, sudo).
 # Gleiche Gruppen wie „abc“, damit sudo ohne Passwort weiter geht. Hintergrundbild: blau = Dev-Desktop, orange = dev-test.
 RUN \
-  groupadd -g 1000 jam && \
-  useradd -u 1000 -g 1000 -M -d /config -s /bin/bash -c jam -G "$(id -Gn abc | tr ' ' '\n' | grep -vx abc | paste -sd,)" jam && \
+  echo "UID/GID 1000 im Basis-Image: $(getent passwd 1000) / $(getent group 1000)" && \
+  groupadd -o -g 1000 jam && \
+  useradd -o -u 1000 -g 1000 -M -d /config -s /bin/bash -c jam -G "$(id -Gn abc | tr ' ' '\n' | grep -vx abc | paste -sd,)" jam && \
   for f in /etc/passwd /etc/group; do \
     zeile="$(grep '^jam:' "$f")" && \
     sed -i -e '/^jam:/d' "$f" && \
-    sed -i -e "/^abc:/i ${zeile}" "$f"; \
+    sed -i -e "1i ${zeile}" "$f"; \
   done && \
   [ "$(getent passwd 1000 | cut -d: -f1)" = jam ] && [ "$(getent group 1000 | cut -d: -f1)" = jam ] && \
   id jam && id abc && \
