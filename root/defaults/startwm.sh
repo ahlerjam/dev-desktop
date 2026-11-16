@@ -4,6 +4,12 @@
 # Der Prozess läuft mit UID 1000; die heißt im Image „jam“ (zweiter Name neben „abc“, siehe Dockerfile).
 export USER=jam LOGNAME=jam
 
+# Ohne Anmeldemanager setzt niemand die Desktop-Umgebung. Electron (Claude Desktop) und Chrome erkennen dann keinen
+# Schlüsselbund, nehmen den Speicher „basic_text“ und Claude Desktop verwirft die Anmeldung („safeStorage not
+# available, tokens will not persist“, Log vom 16.11.). Mit XFCE wählen sie gnome-libsecret (Electron-Doku safeStorage);
+# den Schlüsselbund dazu entsperrt /usr/local/bin/desktop-sitzung.
+export XDG_CURRENT_DESKTOP=XFCE
+
 # Voreinstellungen nur beim allerersten Start ins Home kopieren (wie im Original)
 if [ ! -d "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml ]; then
   mkdir -p "${HOME}"/.config/xfce4/xfconf/xfce-perchannel-xml
