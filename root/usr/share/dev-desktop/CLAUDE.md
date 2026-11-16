@@ -21,6 +21,7 @@ weißt, was los ist. Antworten auf Deutsch.
 ## So geht es
 - Programme mit `sudo apt install <paket>` installieren. Die Kiste merkt sich das und installiert es nach jedem Start
   im Hintergrund wieder (Liste `~/.config/dev-desktop/pakete.txt`); kurz nach dem Start kann ein Programm noch fehlen.
+  Meldet `apt install` direkt nach einem Start „Unable to locate package“, einmal `sudo apt update` ausführen.
 - Entwicklerwerkzeuge sind nicht vorinstalliert – was fehlt, per `apt` holen.
 - Was bleiben soll, gehört ins Home oder in ein Git-Repo, nicht nach `/tmp`.
 - Ausprobieren ist hier ausdrücklich erwünscht: Die Kiste lässt sich jederzeit zurücksetzen.
